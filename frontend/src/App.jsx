@@ -18,7 +18,7 @@ function App() {
 
   const fetchReports = async () => {
     try {
-      const res = await axios.post("http://localhost:5000/api/reports", filters);
+      const res = await axios.post("https://employee-report.onrender.com/api/reports", filters);
       setReports(res.data);
     } catch (error) {
       console.error("Error fetching reports:", error);
@@ -28,7 +28,7 @@ function App() {
   const downloadPdf = async () => {
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/reports/pdf",
+        "https://employee-report.onrender.com/api/reports/pdf",
         filters,
         { responseType: "blob" }
       );
@@ -45,7 +45,7 @@ function App() {
 
   const downloadCsv = async () => {
     try {
-      const res = await axios.post("http://localhost:5000/api/reports/csv",filters,{ responseType: "blob" });
+      const res = await axios.post("https://employee-report.onrender.com/api/reports/csv",filters,{ responseType: "blob" });
       const blob = new Blob([res.data], { type: "text/csv" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -58,7 +58,7 @@ function App() {
 
   const downloadExcel = async () => {
   try {
-    const res = await axios.post("http://localhost:5000/api/reports/excel",filters,{ responseType: "blob" });
+    const res = await axios.post("https://employee-report.onrender.com/api/reports/excel",filters,{ responseType: "blob" });
     const blob = new Blob([res.data], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
