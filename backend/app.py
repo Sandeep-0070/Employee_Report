@@ -8,6 +8,12 @@ from flask import send_file
 import csv
 import pandas as pd
 import os
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+
 
 app = Flask(__name__)
 CORS(app)
@@ -88,29 +94,50 @@ def generate_pdf():
     filters = request.get_json()
     data = query_employee_reports(filters)
 
-    # Generate PDF in memory
     buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=letter)
-    pdf.setFont("Helvetica", 10)
-    width, height = letter
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
 
-    pdf.drawString(30, height - 30, "Employee Report")
+    styles = getSampleStyleSheet()
 
-    y = height - 50
-    pdf.drawString(30, y, "ID | Name | Dept | Status | Date | Hours | Performance")
-    y -= 20
+    # Title
+    elements.append(Paragraph("Employee Report", styles['Title']))
+    elements.append(Spacer(1, 12))
 
-    for row in data:
-        text = f"{row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} | {row[6]}"
-        pdf.drawString(30, y, text)
-        y -= 15
-        if y < 50:
-            pdf.showPage()
-            y = height - 50
+    # Applied Filters
+    filters_applied = [
+        f"Employee Name: {filters.get('employee_name', '') or 'All'}",
+        f"Department: {filters.get('department', '') or 'All'}",
+        f"Status: {filters.get('status', '') or 'All'}",
+        f"Performance: {filters.get('performance', '') or 'All'}",
+        f"Start Date: {filters.get('start_date', '') or 'Any'}",
+        f"End Date: {filters.get('end_date', '') or 'Any'}",
+        f"Min Hours: {filters.get('min_hours', '') or 'Any'}",
+        f"Max Hours: {filters.get('max_hours', '') or 'Any'}"
+    ]
+    for line in filters_applied:
+        elements.append(Paragraph(line, styles['Normal']))
+    elements.append(Spacer(1, 12))
 
-    pdf.save()
+    # Table Data
+    table_data = [['ID', 'Name', 'Dept', 'Status', 'Date', 'Hours', 'Performance']] + list(data)
+
+    # Create and style the table
+    table = Table(table_data, repeatRows=1, colWidths=[0.7*inch, 1.5*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.0*inch, 1.2*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#00ACC1")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke)
+    ]))
+
+    elements.append(table)
+
+    doc.build(elements)
     buffer.seek(0)
-
     return send_file(buffer, as_attachment=True, download_name="employee_report.pdf", mimetype='application/pdf')
 
 # Export CSV
