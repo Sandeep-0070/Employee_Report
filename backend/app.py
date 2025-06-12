@@ -28,8 +28,10 @@ def query_employee_reports(filters):
 
     # Dynamic filters
     if filters.get("employee_name"):
-        query += " AND employee_name LIKE ?"
-        values.append(f"%{filters['employee_name']}%")
+    names = [name.strip().lower() for name in filters["employee_name"].split(",")]
+    placeholders = ",".join(["?"] * len(names))
+    query += f" AND LOWER(employee_name) IN ({placeholders})"
+    values.extend(names)
 
     if filters.get("department"):
         query += " AND department = ?"
@@ -118,7 +120,7 @@ def generate_pdf():
     for line in filters_applied:
         elements.append(Paragraph(line, styles['Normal']))
     elements.append(Spacer(1, 12))
-    
+
     # Record Count
     elements.append(Paragraph(f"Total Records: {len(data)}", styles['Heading4']))
     elements.append(Spacer(1, 12))
@@ -173,7 +175,6 @@ def export_excel():
     output.seek(0)
 
     return send_file(output, as_attachment=True, download_name="employee_report.xlsx", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
