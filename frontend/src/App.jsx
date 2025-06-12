@@ -156,6 +156,14 @@ function App() {
 </div>
 
 
+{reportData.length > 0 && (
+  <div style={{ margin: "10px 0", fontWeight: "bold", fontSize: "16px", color: "#333" }}>
+    Total Records: {reportData.length}
+  </div>
+)}
+
+
+
       <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead style={{ backgroundColor: "#f2f2f2" }}>
           <tr>
