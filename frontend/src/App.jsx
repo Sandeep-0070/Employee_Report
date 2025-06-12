@@ -156,9 +156,9 @@ function App() {
 </div>
 
 
-{reportData.length > 0 && (
+{reports.length > 0 && (
   <div style={{ margin: "10px 0", fontWeight: "bold", fontSize: "16px", color: "#333" }}>
-    Total Records: {reportData.length}
+    Total Records: {reports.length}
   </div>
 )}
 
