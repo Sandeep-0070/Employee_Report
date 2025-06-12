@@ -91,7 +91,6 @@ function App() {
 </small>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "15px", marginBottom: "20px" }}>
-      <label style={{ fontWeight: "bold", marginBottom: "5px", display: "block" }}>Employee Name:</label>
         <input
           type="text"
           placeholder="Employee Name"
