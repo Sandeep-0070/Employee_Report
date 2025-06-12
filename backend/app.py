@@ -28,9 +28,9 @@ def query_employee_reports(filters):
 
     # Dynamic filters
     if filters.get("employee_name"):
-        names = [name.strip().lower() for name in filters["employee_name"].split(",")]
-        placeholders = ",".join(["?"] * len(names))
-        query += f" AND LOWER(employee_name) IN ({placeholders})"
+        names = [f"%{name.strip().lower()}%" for name in filters["employee_name"].split(",")]
+        like_clauses = " OR ".join(["LOWER(employee_name) LIKE ?"] * len(names))
+        query += f" AND ({like_clauses})"
         values.extend(names)
 
     if filters.get("department"):
