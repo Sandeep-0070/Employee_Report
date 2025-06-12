@@ -33,17 +33,29 @@ def query_employee_reports(filters):
         query += f" AND ({like_clauses})"
         values.extend(names)
 
-    if filters.get("department"):
-        query += " AND department = ?"
-        values.append(filters["department"])
+    if filters.get("department") and isinstance(filters["department"], list):
+        departments = [d.strip() for d in filters["department"] if d.strip()]
+        if departments:
+            placeholders = ','.join(['?'] * len(departments))
+            query += f" AND department IN ({placeholders})"
+            values.extend(departments)
 
-    if filters.get("status"):
-        query += " AND status = ?"
-        values.append(filters["status"])
 
-    if filters.get("performance"):
-        query += " AND performance = ?"
-        values.append(filters["performance"])
+    if filters.get("status") and isinstance(filters["status"], list):
+        statuses = [s.strip() for s in filters["status"] if s.strip()]
+        if statuses:
+            placeholders = ','.join(['?'] * len(statuses))
+            query += f" AND status IN ({placeholders})"
+            values.extend(statuses)
+
+
+    if filters.get("performance") and isinstance(filters["performance"], list):
+        performances = [p.strip() for p in filters["performance"] if p.strip()]
+        if performances:
+            placeholders = ','.join(['?'] * len(performances))
+            query += f" AND performance IN ({placeholders})"
+            values.extend(performances)
+
 
     if filters.get("start_date"):
         query += " AND report_date >= ?"
