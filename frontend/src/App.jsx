@@ -5,9 +5,9 @@ import "./App.css"; // Optional if you're using plain CSS
 function App() {
   const [filters, setFilters] = useState({
     employee_name: "",
-    department: "",
-    status: "",
-    performance: "",
+    department: [],
+    status: [],
+    performance: [],
     start_date: "",
     end_date: "",
     min_hours: "",
@@ -86,59 +86,126 @@ function App() {
 </div>
 
 
+<small style={{ color: "#555" }}>
+  * You can enter multiple names separated by commas (e.g., John, Alice)
+</small>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "15px", marginBottom: "20px" }}>
         <input
           type="text"
           placeholder="Employee Name"
+          value={filters.employee_name}
           onChange={(e) => setFilters({ ...filters, employee_name: e.target.value })}
         />
 
-        <select onChange={(e) => setFilters({ ...filters, department: e.target.value })}>
-          <option value="">Select Department</option>
-          <option value="HR">HR</option>
-          <option value="Engineering">Engineering</option>
-          <option value="Sales">Sales</option>
-          <option value="Marketing">Marketing</option>
-        </select>
+        <div style={{ marginBottom: "15px" }}>
+  <label style={{ fontWeight: "bold", marginBottom: "5px", display: "block" }}>Department:</label>
+  
+  {["HR", "Engineering", "Sales", "Marketing"].map((dept) => (
+    <label key={dept} style={{ marginRight: "15px" }}>
+      <input
+        type="checkbox"
+        value={dept}
+        checked={filters.department.includes(dept)}
+        onChange={(e) => {
+          const checked = e.target.checked;
+          const value = e.target.value;
+          setFilters((prev) => ({
+            ...prev,
+            department: checked
+              ? [...prev.department, value]
+              : prev.department.filter((d) => d !== value)
+          }));
+        }}
+      />
+      {` ${dept}`}
+    </label>
+  ))}
+</div>
 
-        <select onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-          <option value="">Select Status</option>
-          <option value="Active">Active</option>
-          <option value="On Leave">On Leave</option>
-          <option value="Resigned">Resigned</option>
-        </select>
 
-        <select onChange={(e) => setFilters({ ...filters, performance: e.target.value })}>
-          <option value="">Select Performance</option>
-          <option value="Excellent">Excellent</option>
-          <option value="Good">Good</option>
-          <option value="Average">Average</option>
-          <option value="Poor">Poor</option>
-        </select>
+
+<div style={{ marginBottom: "15px" }}>
+  <label style={{ fontWeight: "bold", marginBottom: "5px", display: "block" }}>Status:</label>
+
+  {["Active", "On Leave", "Resigned"].map((status) => (
+    <label key={status} style={{ marginRight: "15px" }}>
+      <input
+        type="checkbox"
+        value={status}
+        checked={filters.status.includes(status)}
+        onChange={(e) => {
+          const checked = e.target.checked;
+          const value = e.target.value;
+          setFilters((prev) => ({
+            ...prev,
+            status: checked
+              ? [...prev.status, value]
+              : prev.status.filter((s) => s !== value)
+          }));
+        }}
+      />
+      {` ${status}`}
+    </label>
+  ))}
+</div>
+
+
+
+<div style={{ marginBottom: "15px" }}>
+  <label style={{ fontWeight: "bold", marginBottom: "5px", display: "block" }}>Performance:</label>
+
+  {["Excellent", "Good", "Average", "Poor"].map((perf) => (
+    <label key={perf} style={{ marginRight: "15px" }}>
+      <input
+        type="checkbox"
+        value={perf}
+        checked={filters.performance.includes(perf)}
+        onChange={(e) => {
+          const checked = e.target.checked;
+          const value = e.target.value;
+          setFilters((prev) => ({
+            ...prev,
+            performance: checked
+              ? [...prev.performance, value]
+              : prev.performance.filter((p) => p !== value)
+          }));
+        }}
+      />
+      {` ${perf}`}
+    </label>
+  ))}
+</div>
+
+
 
         <input
           type="date"
+          value={filters.start_date}
           onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
         />
         <input
           type="date"
+          value={filters.end_date}
           onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
         />
 
         <input
           type="number"
           placeholder="Min Hours"
+          value={filters.min_hours}
           onChange={(e) => setFilters({ ...filters, min_hours: e.target.value })}
         />
         <input
           type="number"
           placeholder="Max Hours"
+          value={filters.max_hours}
           onChange={(e) => setFilters({ ...filters, max_hours: e.target.value })}
         />
       </div>
 
-      
+    
+
 
       <div style={{ marginBottom: "20px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
   <button onClick={fetchReports} style={{ backgroundColor: "#4CAF50", color: "white", padding: "10px 15px", border: "none", borderRadius: "4px", cursor: "pointer" }}>
@@ -153,6 +220,43 @@ function App() {
   <button onClick={downloadExcel} style={{ backgroundColor: "#6f42c1", color: "white", padding: "10px 15px", border: "none", borderRadius: "4px", cursor: "pointer" }}>
     Export Excel
   </button>
+
+<button
+  onClick={() => {
+    const clearedFilters = {
+      employee_name: "",
+      department: [],
+      status: [],
+      performance: [],
+      start_date: "",
+      end_date: "",
+      min_hours: "",
+      max_hours: ""
+    };
+    setFilters(clearedFilters);
+
+    // Ensure filters state is updated before fetching
+    setTimeout(() => {
+      fetchReports();
+    }, 0);
+  }}
+  style={{
+    padding: "8px 16px",
+    backgroundColor: "#dc3545",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer",
+    marginLeft: "10px"
+  }}
+>
+  Clear All Filters
+</button>
+
+
+
+
+
 </div>
 
 
