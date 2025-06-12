@@ -118,6 +118,11 @@ def generate_pdf():
     for line in filters_applied:
         elements.append(Paragraph(line, styles['Normal']))
     elements.append(Spacer(1, 12))
+    
+    # Record Count
+    elements.append(Paragraph(f"Total Records: {len(data)}", styles['Heading4']))
+    elements.append(Spacer(1, 12))
+
 
     # Table Data
     table_data = [['ID', 'Name', 'Dept', 'Status', 'Date', 'Hours', 'Performance']] + list(data)
