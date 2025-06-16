@@ -1,6 +1,11 @@
 import { useState } from "react";
 import axios from "axios";
 import "./App.css"; // Optional if you're using plain CSS
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 
 function App() {
   const [filters, setFilters] = useState({
@@ -20,9 +25,12 @@ function App() {
     try {
       const res = await axios.post("https://employee-report.onrender.com/api/reports", filters);
       setReports(res.data);
+      if (res.data.length === 0) {
+        toast.warning("No results found");
+      }
     } catch (error) {
       console.error("Error fetching reports:", error);
-    }
+    } 
   };
 
   const downloadPdf = async () => {
@@ -38,6 +46,7 @@ function App() {
       link.href = window.URL.createObjectURL(blob);
       link.download = "employee_report.pdf";
       link.click();
+      toast.success("PDF report downloaded");
     } catch (error) {
       console.error("PDF generation failed:", error);
     }
@@ -51,6 +60,7 @@ function App() {
       link.href = URL.createObjectURL(blob);
       link.download = "employee_report.csv";
       link.click();
+      toast.success("CSV report downloaded");
     } catch (err) {
       console.error("CSV download failed:", err);
     }
@@ -64,6 +74,7 @@ function App() {
     link.href = URL.createObjectURL(blob);
     link.download = "employee_report.xlsx";
     link.click();
+    toast.success("Excel report downloaded");
   } catch (err) {
     console.error("Excel download failed:", err);
   }
@@ -73,6 +84,7 @@ function App() {
   return (
 
     <div style={{ padding: "20px", fontFamily: "Arial" }}>
+    <ToastContainer position="top-right" autoClose={3000} />
     <div style={{
   backgroundColor: "#e0f7fa", // light cyan-blue
   border: "2px solid #00acc1",
@@ -179,16 +191,22 @@ function App() {
 
 
 
-        <input
-          type="date"
-          value={filters.start_date}
-          onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-        />
-        <input
-          type="date"
-          value={filters.end_date}
-          onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-        />
+<DatePicker
+  selected={filters.start_date ? new Date(filters.start_date) : null}
+  onChange={(date) =>
+    setFilters({ ...filters, start_date: date ? date.toISOString().split("T")[0] : "" })
+  }
+  placeholderText="Start Date"
+/>
+
+<DatePicker
+  selected={filters.end_date ? new Date(filters.end_date) : null}
+  onChange={(date) =>
+    setFilters({ ...filters, end_date: date ? date.toISOString().split("T")[0] : "" })
+  }
+  placeholderText="End Date"
+/>
+
 
         <input
           type="number"
@@ -234,7 +252,7 @@ function App() {
       max_hours: ""
     };
     setFilters(clearedFilters);
-
+    toast.info("Filters cleared");
     // Ensure filters state is updated before fetching
     setTimeout(() => {
       fetchReports();
