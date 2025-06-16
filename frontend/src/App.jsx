@@ -34,7 +34,7 @@ const [selectedColumns, setSelectedColumns] = useState([...allColumns]);
 filters.columns = selectedColumns; 
   const fetchReports = async () => {
     try {
-      const res = await axios.post("http://127.0.0.1:5000/api/reports", filters);
+      const res = await axios.post("https://employee-report.onrender.com/api/reports", filters);
       setReports(res.data);
       if (res.data.length === 0) {
         toast.warning("No results found");
@@ -47,7 +47,7 @@ filters.columns = selectedColumns;
   const downloadPdf = async () => {
   try {
     const res = await axios.post(
-      "http://127.0.0.1:5000/api/reports/pdf",
+      "https://employee-report.onrender.com/api/reports/pdf",
       {
         ...filters,
         columns: selectedColumns, // ✅ include selected columns
@@ -73,7 +73,7 @@ filters.columns = selectedColumns;
 
   const downloadCsv = async () => {
     try {
-      const res = await axios.post("http://127.0.0.1:5000/api/reports/csv",filters,{ responseType: "blob" });
+      const res = await axios.post("https://employee-report.onrender.com/api/reports/csv",filters,{ responseType: "blob" });
       const blob = new Blob([res.data], { type: "text/csv" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -87,7 +87,7 @@ filters.columns = selectedColumns;
 
   const downloadExcel = async () => {
   try {
-    const res = await axios.post("http://127.0.0.1:5000/api/reports/excel",filters,{ responseType: "blob" });
+    const res = await axios.post("https://employee-report.onrender.com/api/reports/excel",filters,{ responseType: "blob" });
     const blob = new Blob([res.data], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
