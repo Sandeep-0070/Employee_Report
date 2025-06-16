@@ -96,7 +96,29 @@ def get_reports():
             "hours_worked": row[5],
             "performance": row[6]
         })
+        # 🆕 Apply column filtering if provided
+        selected_columns = filters.get("columns")
+        if selected_columns:
+            reports = [
+                {key: record[key] for key in selected_columns if key in record}
+                for record in reports
+            ]
+
     return jsonify(reports)
+
+def column_index(column):
+    # Mapping index according to the return order of query_employee_reports()
+    index_map = {
+        "id": 0,
+        "employee_name": 1,
+        "department": 2,
+        "status": 3,
+        "report_date": 4,
+        "hours_worked": 5,
+        "performance": 6
+    }
+    return index_map[column]
+
 
 # Health check
 @app.route("/")
@@ -107,18 +129,38 @@ def index():
 def generate_pdf():
     filters = request.get_json()
     data = query_employee_reports(filters)
+    selected_columns = filters.get("columns")
 
+    # Column map: backend column name → PDF table header label
+    column_map = {
+        "id": "ID",
+        "employee_name": "Name",
+        "department": "Dept",
+        "status": "Status",
+        "report_date": "Date",
+        "hours_worked": "Hours",
+        "performance": "Performance"
+    }
+
+    if not selected_columns:
+        selected_columns = list(column_map.keys())
+
+    # Filter the data based on selected columns
+    filtered_data = [
+        [row[column_index(col)] for col in selected_columns]
+        for row in data
+    ]
+    headers = [column_map[col] for col in selected_columns]
+
+    # PDF generation
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
 
     styles = getSampleStyleSheet()
-
-    # Title
     elements.append(Paragraph("Employee Report", styles['Title']))
     elements.append(Spacer(1, 12))
 
-    # Applied Filters
     filters_applied = [
         f"Employee Name: {filters.get('employee_name', '') or 'All'}",
         f"Department: {filters.get('department', '') or 'All'}",
@@ -133,16 +175,17 @@ def generate_pdf():
         elements.append(Paragraph(line, styles['Normal']))
     elements.append(Spacer(1, 12))
 
-    # Record Count
     elements.append(Paragraph(f"Total Records: {len(data)}", styles['Heading4']))
     elements.append(Spacer(1, 12))
 
+    # Create table data
+    table_data = [headers] + filtered_data
 
-    # Table Data
-    table_data = [['ID', 'Name', 'Dept', 'Status', 'Date', 'Hours', 'Performance']] + list(data)
+    # Dynamically set column widths
+    col_width = 6.5 * inch / len(headers)
+    col_widths = [col_width] * len(headers)
 
-    # Create and style the table
-    table = Table(table_data, repeatRows=1, colWidths=[0.7*inch, 1.5*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.0*inch, 1.2*inch])
+    table = Table(table_data, repeatRows=1, colWidths=col_widths)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#00ACC1")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -161,32 +204,76 @@ def generate_pdf():
 
 # Export CSV
 @app.route('/api/reports/csv', methods=['POST'])
-def export_csv():
+def generate_csv():
     filters = request.get_json()
     data = query_employee_reports(filters)
+    selected_columns = filters.get("columns")
+
+    # Use default order if no columns provided
+    column_map = {
+        "id": "ID",
+        "employee_name": "Name",
+        "department": "Dept",
+        "status": "Status",
+        "report_date": "Date",
+        "hours_worked": "Hours",
+        "performance": "Performance"
+    }
+
+    if not selected_columns:
+        selected_columns = list(column_map.keys())
+
+    df = pd.DataFrame(data, columns=list(column_map.keys()))
+    df = df[selected_columns]  # filter columns
 
     output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['ID', 'Name', 'Dept', 'Status', 'Date', 'Hours', 'Performance'])
-    writer.writerows(data)
+    df.columns = [column_map[col] for col in selected_columns]  # rename headers
+    df.to_csv(output, index=False)
     output.seek(0)
 
-    return send_file(io.BytesIO(output.getvalue().encode()), as_attachment=True, download_name="employee_report.csv", mimetype='text/csv')
+    return send_file(
+        io.BytesIO(output.getvalue().encode()),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="employee_report.csv"
+    )
 
 
 # Export Excel
 @app.route('/api/reports/excel', methods=['POST'])
-def export_excel():
+def generate_excel():
     filters = request.get_json()
     data = query_employee_reports(filters)
+    selected_columns = filters.get("columns")
 
-    df = pd.DataFrame(data, columns=['ID', 'Name', 'Dept', 'Status', 'Date', 'Hours', 'Performance'])
+    column_map = {
+        "id": "ID",
+        "employee_name": "Name",
+        "department": "Dept",
+        "status": "Status",
+        "report_date": "Date",
+        "hours_worked": "Hours",
+        "performance": "Performance"
+    }
+
+    if not selected_columns:
+        selected_columns = list(column_map.keys())
+
+    df = pd.DataFrame(data, columns=list(column_map.keys()))
+    df = df[selected_columns]
+    df.columns = [column_map[col] for col in selected_columns]
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Report')
+        df.to_excel(writer, index=False, sheet_name='Employee Report')
     output.seek(0)
 
-    return send_file(output, as_attachment=True, download_name="employee_report.xlsx", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name="employee_report.xlsx"
+    )
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

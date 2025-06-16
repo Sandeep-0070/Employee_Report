@@ -20,10 +20,21 @@ function App() {
   });
 
   const [reports, setReports] = useState([]);
+  const allColumns = [
+  "id",
+  "employee_name",
+  "department",
+  "status",
+  "report_date",
+  "hours_worked",
+  "performance",
+];
 
+const [selectedColumns, setSelectedColumns] = useState([...allColumns]);
+filters.columns = selectedColumns; 
   const fetchReports = async () => {
     try {
-      const res = await axios.post("https://employee-report.onrender.com/api/reports", filters);
+      const res = await axios.post("http://127.0.0.1:5000/api/reports", filters);
       setReports(res.data);
       if (res.data.length === 0) {
         toast.warning("No results found");
@@ -34,27 +45,35 @@ function App() {
   };
 
   const downloadPdf = async () => {
-    try {
-      const res = await axios.post(
-        "https://employee-report.onrender.com/api/reports/pdf",
-        filters,
-        { responseType: "blob" }
-      );
+  try {
+    const res = await axios.post(
+      "http://127.0.0.1:5000/api/reports/pdf",
+      {
+        ...filters,
+        columns: selectedColumns, // ✅ include selected columns
+      },
+      { responseType: "blob" }
+    );
 
-      const blob = new Blob([res.data], { type: "application/pdf" });
-      const link = document.createElement("a");
-      link.href = window.URL.createObjectURL(blob);
-      link.download = "employee_report.pdf";
-      link.click();
-      toast.success("PDF report downloaded");
-    } catch (error) {
-      console.error("PDF generation failed:", error);
-    }
-  };
+    const blob = new Blob([res.data], { type: "application/pdf" });
+    const link = document.createElement("a");
+    link.href = window.URL.createObjectURL(blob);
+    link.download = "employee_report.pdf";
+    link.click();
+
+    toast.success("PDF report downloaded");
+  } catch (error) {
+    console.error("PDF generation failed:", error);
+    toast.error("Failed to generate PDF report");
+  }
+};
+
+
+
 
   const downloadCsv = async () => {
     try {
-      const res = await axios.post("https://employee-report.onrender.com/api/reports/csv",filters,{ responseType: "blob" });
+      const res = await axios.post("http://127.0.0.1:5000/api/reports/csv",filters,{ responseType: "blob" });
       const blob = new Blob([res.data], { type: "text/csv" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -68,7 +87,7 @@ function App() {
 
   const downloadExcel = async () => {
   try {
-    const res = await axios.post("https://employee-report.onrender.com/api/reports/excel",filters,{ responseType: "blob" });
+    const res = await axios.post("http://127.0.0.1:5000/api/reports/excel",filters,{ responseType: "blob" });
     const blob = new Blob([res.data], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -220,7 +239,31 @@ function App() {
           value={filters.max_hours}
           onChange={(e) => setFilters({ ...filters, max_hours: e.target.value })}
         />
-      </div>
+         
+
+      <div>
+  <label><strong>Select Columns:</strong></label>
+  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+    {allColumns.map((col) => (
+      <label key={col}>
+        <input
+          type="checkbox"
+          checked={selectedColumns.includes(col)}
+          onChange={() => {
+            setSelectedColumns((prev) =>
+              prev.includes(col)
+                ? prev.filter((c) => c !== col)
+                : [...prev, col]
+            );
+          }}
+        />
+        {col.replace("_", " ")}
+      </label>
+    ))}
+  </div>
+</div>
+</div>
+
 
     
 
@@ -252,6 +295,17 @@ function App() {
       max_hours: ""
     };
     setFilters(clearedFilters);
+
+      setSelectedColumns([
+      "id",
+      "employee_name",
+      "department",
+      "status",
+      "report_date",
+      "hours_worked",
+      "performance"
+    ]);
+
     toast.info("Filters cleared");
     // Ensure filters state is updated before fetching
     setTimeout(() => {
@@ -283,35 +337,38 @@ function App() {
     Total Records: {reports.length}
   </div>
 )}
+ 
+
+
+<table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
+  <thead style={{ backgroundColor: "#f2f2f2" }}>
+    <tr>
+      {selectedColumns.includes("id") && <th>ID</th>}
+      {selectedColumns.includes("employee_name") && <th>Name</th>}
+      {selectedColumns.includes("department") && <th>Dept</th>}
+      {selectedColumns.includes("status") && <th>Status</th>}
+      {selectedColumns.includes("report_date") && <th>Date</th>}
+      {selectedColumns.includes("hours_worked") && <th>Hours</th>}
+      {selectedColumns.includes("performance") && <th>Performance</th>}
+    </tr>
+  </thead>
+  <tbody>
+    {reports.map((report) => (
+      <tr key={report.id}>
+        {selectedColumns.includes("id") && <td>{report.id}</td>}
+        {selectedColumns.includes("employee_name") && <td>{report.employee_name}</td>}
+        {selectedColumns.includes("department") && <td>{report.department}</td>}
+        {selectedColumns.includes("status") && <td>{report.status}</td>}
+        {selectedColumns.includes("report_date") && <td>{report.report_date}</td>}
+        {selectedColumns.includes("hours_worked") && <td>{report.hours_worked}</td>}
+        {selectedColumns.includes("performance") && <td>{report.performance}</td>}
+      </tr>
+    ))}
+  </tbody>
+</table>
 
 
 
-      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead style={{ backgroundColor: "#f2f2f2" }}>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Dept</th>
-            <th>Status</th>
-            <th>Date</th>
-            <th>Hours</th>
-            <th>Performance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reports.map((report) => (
-            <tr key={report.id}>
-              <td>{report.id}</td>
-              <td>{report.employee_name}</td>
-              <td>{report.department}</td>
-              <td>{report.status}</td>
-              <td>{report.report_date}</td>
-              <td>{report.hours_worked}</td>
-              <td>{report.performance}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
