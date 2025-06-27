@@ -1,191 +1,142 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import sqlite3
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 import io
-from flask import send_file
-import csv
 import pandas as pd
-import os
 from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
-
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-# Function to query the database based on filters
-def query_employee_reports(filters):
-    conn = sqlite3.connect('employee_reports.db')
-    cursor = conn.cursor()
+# ✨ Define your table schema here.
+# To switch databases or tables, just update this schema and the DB/table name in `query_reports()
+def get_schema():
+    return [
+        {"name": "id", "type": "number", "enum": False},
+        {"name": "employee_name", "type": "text", "enum": False},
+        {"name": "department", "type": "text", "enum": True, "options": ["HR", "Engineering", "Sales", "Marketing"]},
+        {"name": "status", "type": "text", "enum": True, "options": ["Active", "On Leave", "Resigned"]},
+        {"name": "report_date", "type": "date", "enum": False},
+        {"name": "hours_worked", "type": "number", "enum": False},
+        {"name": "performance", "type": "text", "enum": True, "options": ["Excellent", "Good", "Average", "Poor"]}
+    ]
 
-    query = "SELECT * FROM employee_reports WHERE 1=1"
+# 🔁 Replace DB filename and table name here if using a different dataset.
+def query_reports(filters):
+    conn = sqlite3.connect('employee_reports.db') # 🔁 Change DB file if needed
+    cursor = conn.cursor()
+    schema = get_schema()
+
+    query = "SELECT * FROM employee_reports WHERE 1=1"  # 🔁 Change table name if needed
     values = []
 
-    # Dynamic filters
-    if filters.get("employee_name"):
-        names = [f"%{name.strip().lower()}%" for name in filters["employee_name"].split(",")]
-        like_clauses = " OR ".join(["LOWER(employee_name) LIKE ?"] * len(names))
-        query += f" AND ({like_clauses})"
-        values.extend(names)
-
-    if filters.get("department") and isinstance(filters["department"], list):
-        departments = [d.strip() for d in filters["department"] if d.strip()]
-        if departments:
-            placeholders = ','.join(['?'] * len(departments))
-            query += f" AND department IN ({placeholders})"
-            values.extend(departments)
-
-
-    if filters.get("status") and isinstance(filters["status"], list):
-        statuses = [s.strip() for s in filters["status"] if s.strip()]
-        if statuses:
-            placeholders = ','.join(['?'] * len(statuses))
-            query += f" AND status IN ({placeholders})"
-            values.extend(statuses)
-
-
-    if filters.get("performance") and isinstance(filters["performance"], list):
-        performances = [p.strip() for p in filters["performance"] if p.strip()]
-        if performances:
-            placeholders = ','.join(['?'] * len(performances))
-            query += f" AND performance IN ({placeholders})"
-            values.extend(performances)
-
-
-    if filters.get("start_date"):
-        query += " AND report_date >= ?"
-        values.append(filters["start_date"])
-
-    if filters.get("end_date"):
-        query += " AND report_date <= ?"
-        values.append(filters["end_date"])
-
-    if filters.get("min_hours"):
-        query += " AND hours_worked >= ?"
-        values.append(filters["min_hours"])
-
-    if filters.get("max_hours"):
-        query += " AND hours_worked <= ?"
-        values.append(filters["max_hours"])
+    for col in schema:
+        name = col["name"]
+        if col.get("enum"):
+            selected = filters.get(name)
+            if selected and isinstance(selected, list):
+                placeholders = ','.join(['?'] * len(selected))
+                query += f" AND {name} IN ({placeholders})"
+                values.extend(selected)
+        elif col["type"] == "text":
+            val = filters.get(name)
+            if val:
+                query += f" AND LOWER({name}) LIKE ?"
+                values.append(f"%{val.lower()}%")
+        elif col["type"] == "number":
+            min_key = f"min_{name}"
+            max_key = f"max_{name}"
+            if filters.get(min_key):
+                query += f" AND {name} >= ?"
+                values.append(filters[min_key])
+            if filters.get(max_key):
+                query += f" AND {name} <= ?"
+                values.append(filters[max_key])
+        elif col["type"] == "date":
+            start_key = f"start_{name}"
+            end_key = f"end_{name}"
+            if filters.get(start_key):
+                query += f" AND {name} >= ?"
+                values.append(filters[start_key])
+            if filters.get(end_key):
+                query += f" AND {name} <= ?"
+                values.append(filters[end_key])
 
     cursor.execute(query, values)
     results = cursor.fetchall()
     conn.close()
     return results
 
-# Route to fetch reports with filters
 @app.route('/api/reports', methods=['POST'])
 def get_reports():
     filters = request.get_json()
-    data = query_employee_reports(filters)
-    
-    # Convert to list of dicts for easier handling on frontend
-    reports = []
-    for row in data:
-        reports.append({
-            "id": row[0],
-            "employee_name": row[1],
-            "department": row[2],
-            "status": row[3],
-            "report_date": row[4],
-            "hours_worked": row[5],
-            "performance": row[6]
-        })
-        # 🆕 Apply column filtering if provided
-        selected_columns = filters.get("columns")
-        if selected_columns:
-            reports = [
-                {key: record[key] for key in selected_columns if key in record}
-                for record in reports
-            ]
+    schema = get_schema()
+    data = query_reports(filters)
+    columns = [col["name"] for col in schema]
 
-    return jsonify(reports)
+    reports = [dict(zip(columns, row)) for row in data]
 
-def column_index(column):
-    # Mapping index according to the return order of query_employee_reports()
-    index_map = {
-        "id": 0,
-        "employee_name": 1,
-        "department": 2,
-        "status": 3,
-        "report_date": 4,
-        "hours_worked": 5,
-        "performance": 6
-    }
-    return index_map[column]
+    selected_columns = filters.get("columns")
+    if selected_columns:
+        reports = [
+            {key: record[key] for key in selected_columns if key in record}
+            for record in reports
+        ]
 
-
-# Health check
-@app.route("/")
-def index():
-    return "Employee Report API is running."
+    return jsonify({"count": len(reports), "records": reports})
 
 @app.route('/api/reports/pdf', methods=['POST'])
 def generate_pdf():
     filters = request.get_json()
-    data = query_employee_reports(filters)
-    selected_columns = filters.get("columns")
+    schema = get_schema()
+    columns = [col["name"] for col in schema]
+    data = query_reports(filters)
+    selected_columns = filters.get("columns") or columns
 
-    # Column map: backend column name → PDF table header label
-    column_map = {
-        "id": "ID",
-        "employee_name": "Name",
-        "department": "Dept",
-        "status": "Status",
-        "report_date": "Date",
-        "hours_worked": "Hours",
-        "performance": "Performance"
-    }
-
-    if not selected_columns:
-        selected_columns = list(column_map.keys())
-
-    # Filter the data based on selected columns
-    filtered_data = [
-        [row[column_index(col)] for col in selected_columns]
-        for row in data
-    ]
-    headers = [column_map[col] for col in selected_columns]
-
-    # PDF generation
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
-
     styles = getSampleStyleSheet()
-    elements.append(Paragraph("Employee Report", styles['Title']))
+    elements.append(Paragraph("Report", styles['Title']))
     elements.append(Spacer(1, 12))
 
-    filters_applied = [
-        f"Employee Name: {filters.get('employee_name', '') or 'All'}",
-        f"Department: {filters.get('department', '') or 'All'}",
-        f"Status: {filters.get('status', '') or 'All'}",
-        f"Performance: {filters.get('performance', '') or 'All'}",
-        f"Start Date: {filters.get('start_date', '') or 'Any'}",
-        f"End Date: {filters.get('end_date', '') or 'Any'}",
-        f"Min Hours: {filters.get('min_hours', '') or 'Any'}",
-        f"Max Hours: {filters.get('max_hours', '') or 'Any'}"
-    ]
+    # 🔍 Add applied filters to the PDF
+    filters_applied = []
+    for col in schema:
+        name = col["name"]
+        if col.get("enum"):
+            val = ", ".join(filters.get(name, [])) or "All"
+        elif col["type"] == "number":
+            min_val = filters.get(f"min_{name}", "")
+            max_val = filters.get(f"max_{name}", "")
+            val = f"{min_val} to {max_val}" if min_val or max_val else "Any"
+        elif col["type"] == "date":
+            start = filters.get(f"start_{name}", "")
+            end = filters.get(f"end_{name}", "")
+            val = f"{start} to {end}" if start or end else "Any"
+        else:
+            val = filters.get(name, "") or "All"
+        filters_applied.append(f"{name.replace('_', ' ').title()}: {val}")
+
     for line in filters_applied:
         elements.append(Paragraph(line, styles['Normal']))
     elements.append(Spacer(1, 12))
 
+    # 🔢 Add total count
     elements.append(Paragraph(f"Total Records: {len(data)}", styles['Heading4']))
     elements.append(Spacer(1, 12))
 
-    # Create table data
-    table_data = [headers] + filtered_data
+    # 🧾 Table
+    table_data = [selected_columns] + [
+        [row[columns.index(col)] for col in selected_columns] for row in data
+    ]
 
-    # Dynamically set column widths
-    col_width = 6.5 * inch / len(headers)
-    col_widths = [col_width] * len(headers)
-
-    table = Table(table_data, repeatRows=1, colWidths=col_widths)
+    table = Table(table_data, repeatRows=1, colWidths=[6.5 * inch / len(selected_columns)] * len(selected_columns))
     table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#00ACC1")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -197,37 +148,23 @@ def generate_pdf():
     ]))
 
     elements.append(table)
-
     doc.build(elements)
     buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name="employee_report.pdf", mimetype='application/pdf')
+    return send_file(buffer, as_attachment=True, download_name="Report.pdf", mimetype='application/pdf')
 
-# Export CSV
+
 @app.route('/api/reports/csv', methods=['POST'])
 def generate_csv():
     filters = request.get_json()
-    data = query_employee_reports(filters)
-    selected_columns = filters.get("columns")
+    schema = get_schema()
+    columns = [col["name"] for col in schema]
+    data = query_reports(filters)
+    selected_columns = filters.get("columns") or columns
 
-    # Use default order if no columns provided
-    column_map = {
-        "id": "ID",
-        "employee_name": "Name",
-        "department": "Dept",
-        "status": "Status",
-        "report_date": "Date",
-        "hours_worked": "Hours",
-        "performance": "Performance"
-    }
-
-    if not selected_columns:
-        selected_columns = list(column_map.keys())
-
-    df = pd.DataFrame(data, columns=list(column_map.keys()))
-    df = df[selected_columns]  # filter columns
+    df = pd.DataFrame(data, columns=columns)
+    df = df[selected_columns]
 
     output = io.StringIO()
-    df.columns = [column_map[col] for col in selected_columns]  # rename headers
     df.to_csv(output, index=False)
     output.seek(0)
 
@@ -235,45 +172,39 @@ def generate_csv():
         io.BytesIO(output.getvalue().encode()),
         mimetype="text/csv",
         as_attachment=True,
-        download_name="employee_report.csv"
+        download_name="Report.csv"
     )
 
-
-# Export Excel
 @app.route('/api/reports/excel', methods=['POST'])
 def generate_excel():
     filters = request.get_json()
-    data = query_employee_reports(filters)
-    selected_columns = filters.get("columns")
+    schema = get_schema()
+    columns = [col["name"] for col in schema]
+    data = query_reports(filters)
+    selected_columns = filters.get("columns") or columns
 
-    column_map = {
-        "id": "ID",
-        "employee_name": "Name",
-        "department": "Dept",
-        "status": "Status",
-        "report_date": "Date",
-        "hours_worked": "Hours",
-        "performance": "Performance"
-    }
-
-    if not selected_columns:
-        selected_columns = list(column_map.keys())
-
-    df = pd.DataFrame(data, columns=list(column_map.keys()))
+    df = pd.DataFrame(data, columns=columns)
     df = df[selected_columns]
-    df.columns = [column_map[col] for col in selected_columns]
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Employee Report')
+        df.to_excel(writer, index=False, sheet_name='Report')
     output.seek(0)
 
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name="employee_report.xlsx"
+        download_name="Report.xlsx"
     )
+
+@app.route("/api/reports/columns", methods=["GET"])
+def get_columns():
+    return jsonify(get_schema())
+
+@app.route("/")
+def index():
+    return "Report API is running."
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
