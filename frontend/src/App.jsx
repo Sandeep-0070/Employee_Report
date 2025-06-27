@@ -21,7 +21,7 @@ function App() {
   useEffect(() => {
     const fetchSchema = async () => {
       try {
-        const res = await axios.get("http://127.0.0.1:5000/api/reports/columns"); //Change URL if needed
+        const res = await axios.get("https://employee-report.onrender.com/api/reports/columns"); //Change URL if needed
         setSchema(res.data);
         setSelectedColumns(res.data.map((col) => col.name)); // default: all selected
 
@@ -52,7 +52,7 @@ function App() {
 
   const fetchReports = async () => {
     try {
-      const res = await axios.post("http://127.0.0.1:5000/api/reports", { //Change URL if needed
+      const res = await axios.post("https://employee-report.onrender.com/api/reports", { //Change URL if needed
         ...filters,
         columns: selectedColumns,
       });
@@ -68,7 +68,7 @@ function App() {
   const downloadPdf = async () => {
     try {
       const res = await axios.post(
-        "http://127.0.0.1:5000/api/reports/pdf", //Change URL if needed
+        "https://employee-report.onrender.com/api/reports/pdf", //Change URL if needed
         { ...filters, columns: selectedColumns },
         { responseType: "blob" }
       );
@@ -82,7 +82,7 @@ function App() {
   const downloadCsv = async () => {
     try {
       const res = await axios.post(
-        "http://127.0.0.1:5000/api/reports/csv", //Change URL if needed
+        "https://employee-report.onrender.com/api/reports/csv", //Change URL if needed
         { ...filters, columns: selectedColumns },
         { responseType: "blob" }
       );
@@ -96,7 +96,7 @@ function App() {
   const downloadExcel = async () => {
     try {
       const res = await axios.post(
-        "http://127.0.0.1:5000/api/reports/excel", //Change URL if needed
+        "https://employee-report.onrender.com/api/reports/excel", //Change URL if needed
         { ...filters, columns: selectedColumns },
         { responseType: "blob" }
       );
